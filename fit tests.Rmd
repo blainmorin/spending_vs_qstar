@@ -1,0 +1,130 @@
+---
+title: "Analysis of fit"
+author: "Blain Morin"
+date: "December 18, 2017"
+output: pdf_document
+---
+
+$$ Y_{i} = \alpha _{j[i]}  + \sum \beta _{p}X_{pi} + \epsilon_{i} , for hospitals (i=1 to N)$$
+$$ \alpha _{j} = a + \sum b_{k}W_{kj} + u_{j}, for markets (j = 1 to J)$$
+
+
+```{r, results='hide'}
+### load required packages
+library(lme4)
+library(tidyverse)
+### rstan requires having rtools installed
+library(rstan)
+
+###read in data
+k12ReducedRG = read_csv("k12ReducedRG.csv")
+```
+
+
+First, we create the null model with no fixed effects and a market random effect. This preliminary step allows us to partition the variance into hospital and market levels. 
+
+```{r}
+
+### This is the code for a null model with one random effect (hospital referral region) 
+m1 = lmer(episode ~ 1 + (1 | hrr) , data = k12ReducedRG)
+
+summary(m1)
+
+```
+
+To check if this null model appoximates our data, we can use STAN to draw samples. We use the parameters found above to specify our STAN code.
+
+```{r, cache=TRUE, results='hide'}
+###prepare data for STAN
+
+m1_stan_data = list(episode = k12ReducedRG$episode,
+               hrr = as.integer(as.factor(k12ReducedRG$hrr)),
+               K = length(unique(k12ReducedRG$hrr)))
+
+### Specify prior parameters
+N = nrow(k12ReducedRG)
+
+### Draw samples with stan
+stan_null = stan(file = "m1.stan", data = m1_stan_data, iter = 2000, chains = 4)
+
+
+```
+
+```{r}
+
+print(stan_null, pars = c("beta", "sigma_e", "sigma_w"),
+      probs=c(0.025, 0.5, 0.975))
+
+
+
+```
+
+The mean intercept in the stan model (18987) is similar to the observed data model (18912).
+
+---
+
+Next, we add the hospital level predictors.
+
+```{r}
+###rename columns 
+k12ReducedRG = k12ReducedRG %>%
+  rename(cmirank = "Rank for Variable cmi",
+         dshpctrank = "Rank for Variable dshpct",
+         mdadjadmitrank = "Rank for Variable mdadjadmit")
+
+m2 = lmer(episode ~ qstarrating +
+        qieffort +
+        jchaoaccredited +
+        urbanlocation +
+        mdaffiliation +
+        ownershipstatus +
+        hospitalbedsize +
+        cmirank +
+        dshpctrank +
+        mdadjadmitrank +
+        (1 | hrr),
+        data = k12ReducedRG)
+
+summary(m2)
+
+```
+
+
+Next, we check the model using STAN. 
+
+```{r, results='hide'}
+###change data to only complete cases
+k12ReducedRG = k12ReducedRG[complete.cases(k12ReducedRG),]
+
+###change N
+N = nrow(k12ReducedRG)
+
+### prepare data for STAN
+m2_stan_data = list(episode = k12ReducedRG$episode,
+               hrr = as.integer(as.factor(k12ReducedRG$hrr)),
+               qstar = k12ReducedRG$qstarrating,
+               qieffort = k12ReducedRG$qieffort,
+               accredited = k12ReducedRG$jchaoaccredited,
+               urban = k12ReducedRG$urbanlocation,
+               mdaffiliation = k12ReducedRG$mdaffiliation,
+               ownership = k12ReducedRG$ownershipstatus,
+               bedsize = k12ReducedRG$hospitalbedsize,
+               cmi = k12ReducedRG$cmirank,
+               dsh = k12ReducedRG$dshpctrank,
+               mdadjadmitrank = k12ReducedRG$mdadjadmitrank,
+               K = length(unique(k12ReducedRG$hrr)),
+               id = as.integer(as.factor(k12ReducedRG$Provider)))
+
+
+
+### run STAN simulation
+m2_stan = stan(file = "m2.stan", data = m2_stan_data, iter = 1000, chains = 2)
+
+```
+
+```{r}
+print(m2_stan, pars = c("beta", "sigma_e", "sigma_w"),
+      probs=c(0.025, 0.5, 0.975))
+
+summary(m2)
+```
