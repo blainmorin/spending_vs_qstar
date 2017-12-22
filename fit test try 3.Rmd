@@ -1,0 +1,172 @@
+---
+title: "Fit Test Try 3"
+author: "Blain Morin"
+date: "December 21, 2017"
+output: pdf_document
+---
+
+$$ Y_{i} = \alpha _{j[i]}  + \sum \beta _{p}X_{pi} + \epsilon_{i} , for hospitals (i=1 to N)$$
+$$ \alpha _{j} = a + \sum b_{k}W_{kj} + u_{j}, for markets (j = 1 to J)$$
+
+
+
+```{r, results='hide', include=FALSE}
+### load required packages
+library(lme4)
+library(tidyverse)
+### rstan requires having rtools installed
+library(rstan)
+
+###read in data
+k12ReducedRG = read_csv("k12ReducedRG.csv")
+```
+
+# Remove missing data for Stan:
+
+```{r}
+###remove missing data colums
+k12ReducedRG = k12ReducedRG %>%
+  select(-reform, -joinnetwork)
+
+###change data to only complete cases
+k12ReducedRG = k12ReducedRG[complete.cases(k12ReducedRG),]
+
+dim(k12ReducedRG)
+
+
+```
+
+
+# Get m1 data ready for stan:
+
+```{r}
+
+model1data = list(episode = k12ReducedRG$episode,
+                  hrr = as.integer(as.factor(k12ReducedRG$hrr)),
+                  K = length(unique(k12ReducedRG$hrr)),
+                  N = nrow(k12ReducedRG))
+
+
+```
+
+```{r, results='hide', warning=FALSE}
+
+model1stan = stan("model1.stan", data = model1data,  chains = 4, iter = 2000)
+
+```
+
+# Compare max and min from stan simulations to observed data:
+
+```{r}
+###Null model beta
+print(model1stan, pars = c("beta[1]", "sigma_e", "sigma_w"))
+
+###Extract Maxes
+model1maxes = extract(model1stan, pars = c("maximum"))
+
+###Extract Mins
+model1mins = extract(model1stan, pars = c("minimum"))
+
+###Mean Max
+mean(model1maxes$maximum)
+summary(model1maxes$maximum)
+
+###Mean Min
+mean(model1mins$minimum)
+summary(model1mins$minimum)
+
+###Compare observed
+summary(k12ReducedRG$episode)
+```
+
+# Get m2 data ready for stan:
+```{r}
+###rename columns 
+k12ReducedRG = k12ReducedRG %>%
+  rename(cmirank = "Rank for Variable cmi",
+         dshpctrank = "Rank for Variable dshpct",
+         mdadjadmitrank = "Rank for Variable mdadjadmit")
+```
+
+```{r}
+### prepare data for STAN
+model2data = list(episode = k12ReducedRG$episode,
+               hrr = as.integer(as.factor(k12ReducedRG$hrr)),
+               qstar = k12ReducedRG$qstarrating,
+               qieffort = k12ReducedRG$qieffort,
+               accredited = k12ReducedRG$jchaoaccredited,
+               urban = k12ReducedRG$urbanlocation,
+               mdaffiliation = k12ReducedRG$mdaffiliation,
+               ownership = k12ReducedRG$ownershipstatus,
+               bedsize = k12ReducedRG$hospitalbedsize,
+               cmi = k12ReducedRG$cmirank,
+               dsh = k12ReducedRG$dshpctrank,
+               mdadjadmitrank = k12ReducedRG$mdadjadmitrank,
+               K = length(unique(k12ReducedRG$hrr)),
+               id = as.integer(as.factor(k12ReducedRG$Provider)),
+               N = nrow(k12ReducedRG))
+
+
+```
+
+
+```{r results="hide", warning=FALSE}
+###run stan simulation
+
+model2stan = stan("model2.stan", data = model2data, chains = 4, iter=2000, cores = 2)
+
+```
+
+#Compare simulation max and mean to observed
+
+```{r}
+
+print(model2stan, pars = c("beta[1]",
+                           "beta[2]",
+                           "beta[3]",
+                           "beta[4]",
+                           "beta[5]",
+                           "beta[6]",
+                           "beta[7]",
+                           "beta[8]",
+                           "beta[9]",
+                           "beta[10]",
+                           "beta[11]",
+                           "sigma_e", 
+                           "sigma_w"))
+
+###Reference for betas:
+
+#      beta[1] + w[hrr[i]] + (intercept)
+#      beta[2]*qstar[i] +
+#      beta[3]*qieffort[i] +
+#      beta[4]*accredited[i] +
+#      beta[5]*urban[i] +
+#      beta[6]*mdaffiliation[i] +
+#      beta[7]*ownership[i] +
+#      beta[8]*bedsize[i] +
+#      beta[9]*cmi[i] +
+#      beta[10]*dsh[i] +
+#      beta[11]*mdadjadmitrank[i];
+
+
+
+###Extract maxes
+model2maxes = extract(model2stan, pars = c("maximum"))
+
+###Extract mins
+model2mins = extract(model2stan, pars = c("minimum"))
+
+###Mean max
+mean(model2maxes$maximum)
+summary(model2maxes$maximum)
+
+###Mean min
+mean(model2mins$minimum)
+summary(model2mins$minimum)
+
+###Compare observed
+summary(k12ReducedRG$episode)
+```
+
+

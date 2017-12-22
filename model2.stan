@@ -29,16 +29,16 @@ model {
   w ~ normal(0, sigma_w);    //market random effects
   for (i in 1:N){
     mu = beta[1] + w[hrr[i]] +
-      beta[2]*id[i] +
-      beta[3]*id[i] +
-      beta[4]*id[i] +
-      beta[5]*id[i] +
-      beta[6]*id[i] +
-      beta[7]*id[i] +
-      beta[8]*id[i] +
-      beta[9]*id[i] +
-      beta[10]*id[i] +
-      beta[11]*id[1];
+      beta[2]*qstar[i] +
+      beta[3]*qieffort[i] +
+      beta[4]*accredited[i] +
+      beta[5]*urban[i] +
+      beta[6]*mdaffiliation[i] +
+      beta[7]*ownership[i] +
+      beta[8]*bedsize[i] +
+      beta[9]*cmi[i] +
+      beta[10]*dsh[i] +
+      beta[11]*mdadjadmitrank[i];
       
     episode[i] ~ normal(mu,sigma_e);        // likelihood
   }
