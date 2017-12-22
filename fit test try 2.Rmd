@@ -37,7 +37,7 @@ dim(k12ReducedRG)
 ```
 
 
-# Get data ready for stan:
+# Get m1 data ready for stan:
 
 ```{r}
 
@@ -67,14 +67,74 @@ model1mins = extract(model1stan, pars = c("minimum"))
 
 ###Mean Max
 mean(model1maxes$maximum)
+summary(model1maxes$maximum)
 
 ###Mean Min
 mean(model1mins$minimum)
+summary(model1mins$minimum)
 
-###Observed Max
-max(k12ReducedRG$episode)
+###Compare observed
+summary(k12ReducedRG$episode)
+```
 
-###Observed Min
-min(k12ReducedRG$episode)
+# Get m2 data ready for stan:
+```{r}
+###rename columns 
+k12ReducedRG = k12ReducedRG %>%
+  rename(cmirank = "Rank for Variable cmi",
+         dshpctrank = "Rank for Variable dshpct",
+         mdadjadmitrank = "Rank for Variable mdadjadmit")
+```
+
+```{r}
+### prepare data for STAN
+model2data = list(episode = k12ReducedRG$episode,
+               hrr = as.integer(as.factor(k12ReducedRG$hrr)),
+               qstar = k12ReducedRG$qstarrating,
+               qieffort = k12ReducedRG$qieffort,
+               accredited = k12ReducedRG$jchaoaccredited,
+               urban = k12ReducedRG$urbanlocation,
+               mdaffiliation = k12ReducedRG$mdaffiliation,
+               ownership = k12ReducedRG$ownershipstatus,
+               bedsize = k12ReducedRG$hospitalbedsize,
+               cmi = k12ReducedRG$cmirank,
+               dsh = k12ReducedRG$dshpctrank,
+               mdadjadmitrank = k12ReducedRG$mdadjadmitrank,
+               K = length(unique(k12ReducedRG$hrr)),
+               id = as.integer(as.factor(k12ReducedRG$Provider)),
+               N = nrow(k12ReducedRG))
+
 
 ```
+
+
+```{r}
+###run stan simulation
+
+model2stan = stan("model2.stan", data = model2data, chains = 2, iter=600)
+
+```
+
+#Compare simulation max and mean to observed
+
+```{r}
+
+###Extract maxes
+model2maxes = extract(model2stan, pars = c("maximum"))
+
+###Extract mins
+model2mins = extract(model2stan, pars = c("minimum"))
+
+###Mean max
+mean(model2maxes$maximum)
+summary(model2maxes$maximum)
+
+###Mean min
+mean(model2mins$minimum)
+summary(model2mins$minimum)
+
+###Compare observed
+summary(k12ReducedRG$episode)
+```
+
+
