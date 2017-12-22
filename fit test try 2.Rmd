@@ -1,0 +1,80 @@
+---
+title: "Fit Test Try 2"
+author: "Blain Morin"
+date: "December 21, 2017"
+output: pdf_document
+---
+
+$$ Y_{i} = \alpha _{j[i]}  + \sum \beta _{p}X_{pi} + \epsilon_{i} , for hospitals (i=1 to N)$$
+$$ \alpha _{j} = a + \sum b_{k}W_{kj} + u_{j}, for markets (j = 1 to J)$$
+
+
+
+```{r, results='hide'}
+### load required packages
+library(lme4)
+library(tidyverse)
+### rstan requires having rtools installed
+library(rstan)
+
+###read in data
+k12ReducedRG = read_csv("k12ReducedRG.csv")
+```
+
+# Remove missing data for Stan:
+
+```{r}
+###remove missing data colums
+k12ReducedRG = k12ReducedRG %>%
+  select(-reform, -joinnetwork)
+
+###change data to only complete cases
+k12ReducedRG = k12ReducedRG[complete.cases(k12ReducedRG),]
+
+dim(k12ReducedRG)
+
+
+```
+
+
+# Get data ready for stan:
+
+```{r}
+
+model1data = list(episode = k12ReducedRG$episode,
+                  hrr = as.integer(as.factor(k12ReducedRG$hrr)),
+                  K = length(unique(k12ReducedRG$hrr)),
+                  N = nrow(k12ReducedRG))
+
+
+```
+
+```{r, results='hide'}
+
+model1stan = stan("model1.stan", data = model1data,  chains = 4, iter = 2000)
+
+```
+
+# Compare max and min from stan simulations to observed data:
+
+```{r}
+
+###Extract Maxes
+model1maxes = extract(model1stan, pars = c("maximum"))
+
+###Extract Mins
+model1mins = extract(model1stan, pars = c("minimum"))
+
+###Mean Max
+mean(model1maxes$maximum)
+
+###Mean Min
+mean(model1mins$minimum)
+
+###Observed Max
+max(k12ReducedRG$episode)
+
+###Observed Min
+min(k12ReducedRG$episode)
+
+```
