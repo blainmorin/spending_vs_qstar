@@ -1,2 +1,5 @@
 # spending_vs_qstar
-analysis of fit using STAN
+
+fit test try 3 is the most current
+
+best stan models are model1.stan and model2.stan
