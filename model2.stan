@@ -50,7 +50,17 @@ generated quantities{
   real minimum;
   real maximum;
   for (i in 1:N){
-    mu = beta[1] + w[hrr[i]];
+    mu = beta[1] + w[hrr[i]] +
+      beta[2]*id[i] +
+      beta[3]*id[i] +
+      beta[4]*id[i] +
+      beta[5]*id[i] +
+      beta[6]*id[i] +
+      beta[7]*id[i] +
+      beta[8]*id[i] +
+      beta[9]*id[i] +
+      beta[10]*id[i] +
+      beta[11]*id[1];
     episode_tilde[i] = normal_rng(mu,sigma_e);
   }
   minimum = min(episode_tilde);
